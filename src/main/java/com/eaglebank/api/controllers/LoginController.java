@@ -22,7 +22,7 @@ import jakarta.validation.Valid;
 @RestController
 public class LoginController {
   @Autowired private UserService userService;
-  @Autowired private JwtService JwtService; 
+  @Autowired private JwtService jwtService;
   @Autowired private BCryptPasswordEncoder encoder;
 
   @PostMapping("/v1/login")
@@ -34,22 +34,16 @@ public class LoginController {
             .body(new ApiResponse(false, "Email is required", null));
       }
 
-      if (InputValidation.isInvalidInput(loginRequest.getPassword())) {
-        return ResponseEntity.badRequest()
-            .body(new ApiResponse(false, "Password is required", null));
-      }
-
       String email = loginRequest.getEmail();
-      String password = loginRequest.getPassword();
 
       User user = userService.getUserByEmail(email);
 
-      if (user == null || !encoder.matches(password, user.getPasswordHash())) {
+      if (user == null) {
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
             .body(new ApiResponse(false, "Invalid credentials", null));
       }
 
-      String token = JwtService.generateToken(email);
+      String token = jwtService.generateToken(email);
       Map<String, String> tokenData = Map.of("token", token);
       
       return ResponseEntity.ok()

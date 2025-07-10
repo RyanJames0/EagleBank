@@ -3,64 +3,75 @@ package com.eaglebank.api.model.transaction;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
-import io.micrometer.common.lang.Nullable;
 import jakarta.persistence.Entity;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
-import jakarta.persistence.Index;
-import jakarta.persistence.ManyToOne;
+import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
-
-import com.eaglebank.api.model.account.BankAccount;
+import jakarta.validation.constraints.DecimalMax;
+import jakarta.validation.constraints.DecimalMin;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Pattern;
 
 @Entity
-@Table(name = "transaction", indexes = {
-    @Index(name = "idx_transaction_source_account", columnList = "sourceAccount_id"),
-    @Index(name = "idx_transaction_destination_account", columnList = "destinationAccount_id"),
-    @Index(name = "idx_transaction_timestamp", columnList = "timestamp"),
-    @Index(name = "idx_transaction_type", columnList = "type"),
-    @Index(name = "idx_transaction_source_timestamp", columnList = "sourceAccount_id, timestamp"),
-    @Index(name = "idx_transaction_dest_timestamp", columnList = "destinationAccount_id, timestamp")
-})
+@Table(name = "transactions")
 public class Transaction {
+
   @Id
-  @GeneratedValue(strategy = GenerationType.IDENTITY)
-  private Long id;
+  @Pattern(regexp = "^tan-[A-Za-z0-9]+$")
+  private String id;
 
-  @ManyToOne
-  private BankAccount sourceAccount;
-
-  @ManyToOne
-  @Nullable
-  private BankAccount destinationAccount; 
+  @DecimalMin(value = "0.00")
+  @DecimalMax(value = "10000.00")
+  @NotNull
   private BigDecimal amount;
-  private TransactionType type; 
 
-  private LocalDateTime timestamp;
+  @NotBlank
+  private String currency = "GBP";
 
-  public Long getId() {
+  @Enumerated(EnumType.STRING)
+  @NotNull
+  private TransactionType type;
+
+  private String reference;
+
+  @Pattern(regexp = "^usr-[A-Za-z0-9]+$")
+  @NotBlank
+  private String userId;
+
+  @Pattern(regexp = "^01\\d{6}$")
+  @NotBlank
+  private String accountNumber;
+
+  private LocalDateTime createdTimestamp;
+
+  public Transaction() {
+  }
+
+  public Transaction(String id, BigDecimal amount, String currency, TransactionType type, 
+                    String reference, String userId, String accountNumber) {
+    this.id = id;
+    this.amount = amount;
+    this.currency = currency;
+    this.type = type;
+    this.reference = reference;
+    this.userId = userId;
+    this.accountNumber = accountNumber;
+  }
+
+  @PrePersist
+  protected void onCreate() {
+    createdTimestamp = LocalDateTime.now();
+  }
+
+  public String getId() {
     return id;
   }
 
-  public void setId(Long id) {
+  public void setId(String id) {
     this.id = id;
-  }
-
-  public BankAccount getSourceAccount() {
-    return sourceAccount;
-  }
-
-  public void setSourceAccount(BankAccount sourceAccount) {
-    this.sourceAccount = sourceAccount;
-  }
-
-  public BankAccount getDestinationAccount() {
-    return destinationAccount;
-  }
-
-  public void setDestinationAccount(BankAccount destinationAccount) {
-    this.destinationAccount = destinationAccount;
   }
 
   public BigDecimal getAmount() {
@@ -71,6 +82,14 @@ public class Transaction {
     this.amount = amount;
   }
 
+  public String getCurrency() {
+    return currency;
+  }
+
+  public void setCurrency(String currency) {
+    this.currency = currency;
+  }
+
   public TransactionType getType() {
     return type;
   }
@@ -79,11 +98,35 @@ public class Transaction {
     this.type = type;
   }
 
-  public LocalDateTime getTimestamp() {
-    return timestamp;
+  public String getReference() {
+    return reference;
   }
 
-  public void setTimestamp(LocalDateTime timestamp) {
-    this.timestamp = timestamp;
+  public void setReference(String reference) {
+    this.reference = reference;
+  }
+
+  public String getUserId() {
+    return userId;
+  }
+
+  public void setUserId(String userId) {
+    this.userId = userId;
+  }
+
+  public String getAccountNumber() {
+    return accountNumber;
+  }
+
+  public void setAccountNumber(String accountNumber) {
+    this.accountNumber = accountNumber;
+  }
+
+  public LocalDateTime getCreatedTimestamp() {
+    return createdTimestamp;
+  }
+
+  public void setCreatedTimestamp(LocalDateTime createdTimestamp) {
+    this.createdTimestamp = createdTimestamp;
   }
 }

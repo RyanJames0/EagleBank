@@ -1,83 +1,76 @@
 package com.eaglebank.api.model.account;
 
 import java.math.BigDecimal;
-import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
 
-import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
-import jakarta.persistence.Index;
-import jakarta.persistence.JoinColumn;
-import jakarta.persistence.ManyToOne;
-import jakarta.persistence.OneToMany;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
-
-import com.eaglebank.api.model.transaction.Transaction;
-import com.eaglebank.api.model.user.User;
+import jakarta.validation.constraints.DecimalMax;
+import jakarta.validation.constraints.DecimalMin;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Pattern;
 
 @Entity
-@Table(name = "bank_account", indexes = {
-    @Index(name = "idx_bank_account_user_id", columnList = "user_id"),
-    @Index(name = "idx_bank_account_account_number", columnList = "accountNumber"),
-    @Index(name = "idx_bank_account_created_at", columnList = "created_at"),
-    @Index(name = "idx_bank_account_user_created", columnList = "user_id, created_at")
-})
+@Table(name = "bank_accounts")
 public class BankAccount {
-  @Id
-  @GeneratedValue(strategy = GenerationType.IDENTITY)
-  private long id;
 
-  @ManyToOne
-  @JoinColumn(name = "user_id", nullable = false)
-  private User user;
+  @Id
+  @Pattern(regexp = "^01\\d{6}$")
+  private String accountNumber;
+
+  @NotBlank
+  private String sortCode = "10-10-10";
+
+  @NotBlank
+  private String name;
 
   @Enumerated(EnumType.STRING)
+  @NotNull
   private BankAccountType accountType;
 
+  @DecimalMin(value = "0.00")
+  @DecimalMax(value = "10000.00")
+  @NotNull
+  private BigDecimal balance = BigDecimal.ZERO;
 
-  // For simplicity, I am avoiding the
-  // 16 digit primary account number 
-  // and pin data
+  @NotBlank
+  private String currency = "GBP";
 
-  @Column(unique = true)
-  private String accountNumber;
-  private String sortCode;
-  private BigDecimal balance;
-  private LocalDate expiryDate;
-  
-  @Column(name = "created_at")
-  private LocalDateTime createdAt;
-  
-  @Column(name = "updated_at")
-  private LocalDateTime updatedAt;
-  
-  @OneToMany(mappedBy = "sourceAccount")
-  private List<Transaction> transactions = new ArrayList<>();
+  @NotBlank
+  private String userEmail;
 
-  public long getId() {
-    return id;
+  private LocalDateTime createdTimestamp;
+
+  private LocalDateTime updatedTimestamp;
+
+  public BankAccount() {
   }
 
-  public void setId(long id) {
-    this.id = id;
+  public BankAccount(String accountNumber, String name, BankAccountType accountType, String userEmail) {
+    this.accountNumber = accountNumber;
+    this.name = name;
+    this.accountType = accountType;
+    this.userEmail = userEmail;
+    this.balance = BigDecimal.ZERO;
+    this.currency = "GBP";
+    this.sortCode = "10-10-10";
   }
 
-  public User getUserId() {
-    return user;
+  @PrePersist
+  protected void onCreate() {
+    createdTimestamp = LocalDateTime.now();
+    updatedTimestamp = LocalDateTime.now();
   }
 
-  public void setUser(User user) {
-    this.user = user;
+  @PreUpdate
+  protected void onUpdate() {
+    updatedTimestamp = LocalDateTime.now();
   }
 
   public String getAccountNumber() {
@@ -96,22 +89,14 @@ public class BankAccount {
     this.sortCode = sortCode;
   }
 
-  public BigDecimal getBalance() {
-    return balance;
+  public String getName() {
+    return name;
   }
 
-  public void setBalance(BigDecimal balance) {
-    this.balance = balance;
+  public void setName(String name) {
+    this.name = name;
   }
 
-  public List<Transaction> getTransactions() {
-        return Collections.unmodifiableList(transactions);
-    }
-
-    public void addTransaction(Transaction transaction) {
-        transactions.add(transaction);
-    }
-  
   public BankAccountType getAccountType() {
     return accountType;
   }
@@ -120,38 +105,43 @@ public class BankAccount {
     this.accountType = accountType;
   }
 
-  public LocalDate getExpiryDate() {
-    return expiryDate;
+  public BigDecimal getBalance() {
+    return balance;
   }
 
-  public void setExpiryDate(LocalDate expiryDate) {
-    this.expiryDate = expiryDate;
+  public void setBalance(BigDecimal balance) {
+    this.balance = balance;
   }
 
-  public LocalDateTime getCreatedAt() {
-    return createdAt;
+  public String getCurrency() {
+    return currency;
   }
 
-  public void setCreatedAt(LocalDateTime createdAt) {
-    this.createdAt = createdAt;
+  public void setCurrency(String currency) {
+    this.currency = currency;
   }
 
-  public LocalDateTime getUpdatedAt() {
-    return updatedAt;
+  public String getUserEmail() {
+    return userEmail;
   }
 
-  public void setUpdatedAt(LocalDateTime updatedAt) {
-    this.updatedAt = updatedAt;
+  public void setUserEmail(String userEmail) {
+    this.userEmail = userEmail;
   }
 
-  @PrePersist
-  protected void onCreate() {
-    createdAt = LocalDateTime.now();
-    updatedAt = LocalDateTime.now();
+  public LocalDateTime getCreatedTimestamp() {
+    return createdTimestamp;
   }
 
-  @PreUpdate
-  protected void onUpdate() {
-    updatedAt = LocalDateTime.now();
+  public void setCreatedTimestamp(LocalDateTime createdTimestamp) {
+    this.createdTimestamp = createdTimestamp;
+  }
+
+  public LocalDateTime getUpdatedTimestamp() {
+    return updatedTimestamp;
+  }
+
+  public void setUpdatedTimestamp(LocalDateTime updatedTimestamp) {
+    this.updatedTimestamp = updatedTimestamp;
   }
 }

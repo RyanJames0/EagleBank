@@ -1,175 +1,130 @@
 package com.eaglebank.api.service.transaction;
 
 import java.math.BigDecimal;
-import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.eaglebank.api.dto.transaction.TransactionRequest;
+import com.eaglebank.api.dto.transaction.CreateTransactionRequest;
+import com.eaglebank.api.dto.transaction.ListTransactionsResponse;
 import com.eaglebank.api.dto.transaction.TransactionResponse;
 import com.eaglebank.api.model.account.BankAccount;
 import com.eaglebank.api.model.transaction.Transaction;
 import com.eaglebank.api.model.transaction.TransactionType;
+import com.eaglebank.api.model.user.User;
 import com.eaglebank.api.repository.BankAccountRepository;
 import com.eaglebank.api.repository.TransactionRepository;
+import com.eaglebank.api.repository.UserRepository;
 
 @Service
 public class TransactionServiceImpl implements TransactionService {
 
-  @Autowired
-  private TransactionRepository transactionRepository;
-
-  @Autowired
-  private BankAccountRepository bankAccountRepository;
+  @Autowired private TransactionRepository transactionRepository;
+  @Autowired private BankAccountRepository bankAccountRepository;
+  @Autowired private UserRepository userRepository;
 
   @Override
   @Transactional
-  public TransactionResponse createTransaction(final Long accountId, final TransactionRequest request, final String userEmail) {
-    // Find the account
-    BankAccount account = bankAccountRepository.findById(accountId)
-        .orElseThrow(() -> new IllegalArgumentException("Account not found"));
-
-    // Verify account ownership
-    if (!account.getUserId().getEmail().equals(userEmail)) {
-      throw new IllegalArgumentException("Account does not belong to authenticated user");
+  public TransactionResponse createTransaction(String accountNumber, CreateTransactionRequest request, String userEmail) {
+    // Verify account exists and belongs to user
+    Optional<BankAccount> accountOpt = bankAccountRepository.findByAccountNumberAndUserEmail(accountNumber, userEmail);
+    
+    if (accountOpt.isEmpty()) {
+      if (bankAccountRepository.existsByAccountNumber(accountNumber)) {
+        throw new SecurityException("Account does not belong to authenticated user");
+      } else {
+        throw new IllegalArgumentException("Account not found");
+      }
     }
-
-    // Validate transaction type
-    if (request.getType() != TransactionType.DEPOSIT && request.getType() != TransactionType.WITHDRAWAL) {
-      throw new IllegalArgumentException("Only DEPOSIT and WITHDRAWAL transactions are supported");
+    
+    BankAccount account = accountOpt.get();
+    
+    // Get user ID for transaction
+    User user = userRepository.findByEmail(userEmail)
+        .orElseThrow(() -> new IllegalArgumentException("User not found"));
+    
+    // Validate transaction
+    if (request.getType() == TransactionType.withdrawal) {
+      if (account.getBalance().compareTo(request.getAmount()) < 0) {
+        throw new IllegalArgumentException("Insufficient funds");
+      }
     }
-
+    
+    // Generate transaction ID in format tan-[A-Za-z0-9]+
+    String transactionId = "tan-" + UUID.randomUUID().toString().replace("-", "").substring(0, 8);
+    
     // Create transaction
     Transaction transaction = new Transaction();
+    transaction.setId(transactionId);
     transaction.setAmount(request.getAmount());
+    transaction.setCurrency(request.getCurrency());
     transaction.setType(request.getType());
-    transaction.setTimestamp(LocalDateTime.now());
-
+    transaction.setReference(request.getReference());
+    transaction.setUserId(user.getId());
+    transaction.setAccountNumber(accountNumber);
+    
+    // Update account balance
     BigDecimal newBalance;
-
-    if (request.getType() == TransactionType.DEPOSIT) {
-      // For deposits: sourceAccount = null, destinationAccount = target account
-      transaction.setSourceAccount(null);
-      transaction.setDestinationAccount(account);
-      
-      // Update balance
+    if (request.getType() == TransactionType.deposit) {
       newBalance = account.getBalance().add(request.getAmount());
-      account.setBalance(newBalance);
-      
-    } else { // WITHDRAWAL
-      // Check sufficient funds
-      if (account.getBalance().compareTo(request.getAmount()) < 0) {
-        throw new IllegalArgumentException("Insufficient funds for withdrawal");
-      }
-      
-      // For withdrawals: sourceAccount = target account, destinationAccount = null
-      transaction.setSourceAccount(account);
-      transaction.setDestinationAccount(null);
-      
-      // Update balance
+    } else {
       newBalance = account.getBalance().subtract(request.getAmount());
-      account.setBalance(newBalance);
     }
-
-    // Save transaction and updated account
-    transaction = transactionRepository.save(transaction);
+    account.setBalance(newBalance);
+    
+    // Save both transaction and updated account
+    Transaction savedTransaction = transactionRepository.save(transaction);
     bankAccountRepository.save(account);
-
-    // Create response
-    TransactionResponse response = new TransactionResponse();
-    response.setId(transaction.getId());
-    response.setType(transaction.getType());
-    response.setAmount(transaction.getAmount());
-    response.setTimestamp(transaction.getTimestamp());
-    response.setAccountId(accountId);
-    response.setNewBalance(newBalance);
-
-    return response;
+    
+    return new TransactionResponse(savedTransaction);
   }
 
   @Override
-  public List<TransactionResponse> getTransactionsForAccount(final Long accountId, final String userEmail) {
-    // Find the account and verify ownership
-    BankAccount account = bankAccountRepository.findById(accountId)
-        .orElseThrow(() -> new IllegalArgumentException("Account not found"));
-
-    // Verify account belongs to the user
-    if (!account.getUserId().getEmail().equals(userEmail)) {
-      throw new IllegalArgumentException("Account does not belong to authenticated user");
+  public ListTransactionsResponse getTransactionsForAccount(String accountNumber, String userEmail) {
+    // Verify account exists and belongs to user
+    Optional<BankAccount> accountOpt = bankAccountRepository.findByAccountNumberAndUserEmail(accountNumber, userEmail);
+    
+    if (accountOpt.isEmpty()) {
+      if (bankAccountRepository.existsByAccountNumber(accountNumber)) {
+        throw new SecurityException("Account does not belong to authenticated user");
+      } else {
+        throw new IllegalArgumentException("Account not found");
+      }
     }
-
-    // Get all transactions for this account (both as source and destination)
-    List<Transaction> sourceTransactions = transactionRepository.findBySourceAccountIdOrderByTimestampDesc(accountId);
-    List<Transaction> destinationTransactions = transactionRepository.findByDestinationAccountIdOrderByTimestampDesc(accountId);
-
-    // Combine and convert to response DTOs
-    List<TransactionResponse> allTransactions = sourceTransactions.stream()
-        .map(this::convertToResponse)
+    
+    List<Transaction> transactions = transactionRepository.findByAccountNumberOrderByCreatedTimestampDesc(accountNumber);
+    List<TransactionResponse> transactionResponses = transactions.stream()
+        .map(TransactionResponse::new)
         .collect(Collectors.toList());
-
-    allTransactions.addAll(destinationTransactions.stream()
-        .map(this::convertToResponse)
-        .collect(Collectors.toList()));
-
-    // Sort by timestamp descending (most recent first)
-    allTransactions.sort((t1, t2) -> t2.getTimestamp().compareTo(t1.getTimestamp()));
-
-    return allTransactions;
-  }
-
-  private TransactionResponse convertToResponse(final Transaction transaction) {
-    TransactionResponse response = new TransactionResponse();
-    response.setId(transaction.getId());
-    response.setType(transaction.getType());
-    response.setAmount(transaction.getAmount());
-    response.setTimestamp(transaction.getTimestamp());
     
-    // Set account ID based on transaction type
-    if (transaction.getSourceAccount() != null) {
-      response.setAccountId(transaction.getSourceAccount().getId());
-    } else if (transaction.getDestinationAccount() != null) {
-      response.setAccountId(transaction.getDestinationAccount().getId());
-    }
-    
-    return response;
+    return new ListTransactionsResponse(transactionResponses);
   }
 
   @Override
-  public TransactionResponse getTransactionById(final Long accountId, final Long transactionId, final String userEmail) {
-    // First, verify the account exists and belongs to the user
-    BankAccount account = bankAccountRepository.findById(accountId)
-        .orElseThrow(() -> new IllegalArgumentException("Account not found"));
-
-    // Verify account belongs to the user
-    if (!account.getUserId().getEmail().equals(userEmail)) {
-      throw new IllegalArgumentException("Account does not belong to authenticated user");
-    }
-
-    // Find the transaction
-    Transaction transaction = transactionRepository.findById(transactionId)
-        .orElseThrow(() -> new IllegalArgumentException("Transaction not found"));
-
-    // Verify the transaction is associated with the specified account
-    boolean isAssociatedWithAccount = false;
+  public TransactionResponse getTransactionById(String accountNumber, String transactionId, String userEmail) {
+    // Verify account exists and belongs to user
+    Optional<BankAccount> accountOpt = bankAccountRepository.findByAccountNumberAndUserEmail(accountNumber, userEmail);
     
-    if (transaction.getSourceAccount() != null && transaction.getSourceAccount().getId() == accountId) {
-      isAssociatedWithAccount = true;
-    } else if (transaction.getDestinationAccount() != null && transaction.getDestinationAccount().getId() == accountId) {
-      isAssociatedWithAccount = true;
+    if (accountOpt.isEmpty()) {
+      if (bankAccountRepository.existsByAccountNumber(accountNumber)) {
+        throw new SecurityException("Account does not belong to authenticated user");
+      } else {
+        throw new IllegalArgumentException("Account not found");
+      }
     }
-
-    if (!isAssociatedWithAccount) {
+    
+    // Find transaction
+    Optional<Transaction> transactionOpt = transactionRepository.findByIdAndAccountNumber(transactionId, accountNumber);
+    
+    if (transactionOpt.isEmpty()) {
       throw new IllegalArgumentException("Transaction not found");
     }
-
-    // Convert to response DTO
-    TransactionResponse response = convertToResponse(transaction);
-    response.setAccountId(accountId);
     
-    return response;
+    return new TransactionResponse(transactionOpt.get());
   }
 }

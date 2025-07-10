@@ -11,6 +11,8 @@ tags:
     description: Manage transactions on a bank account
   - name: user
     description: Manage a user
+  - name: auth
+    description: Authentication endpoints
 paths:
   /v1/accounts:
     post:
@@ -383,7 +385,7 @@ paths:
           required: true
           schema:
             type: string
-            pattern: ^tan-[A-Za-z0-9]$
+            pattern: ^tan-[A-Za-z0-9]+$
       security:
         - bearerAuth: []
       responses:
@@ -445,6 +447,10 @@ paths:
                 $ref: '#/components/schemas/UserResponse'
         '400':
           description: Invalid details supplied
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BadRequestErrorResponse"
         '500':
           description: An unexpected error occurred
           content:
@@ -587,12 +593,6 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/BadRequestErrorResponse"
-        '404':
-          description: User was not found
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
         '401':
           description: Access token is missing or invalid
           content:
@@ -605,8 +605,52 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+        '404':
+          description: User was not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
         '409':
           description: A user cannot be deleted when they are associated with a bank account
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        '500':
+          description: An unexpected error occurred
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /v1/login:
+    post:
+      tags:
+        - auth
+      description: Authenticate a user and return a JWT token
+      operationId: login
+      requestBody:
+        description: User login credentials
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+        required: true
+      responses:
+        '200':
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+        '400':
+          description: Invalid details supplied
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        '401':
+          description: Invalid credentials
           content:
             application/json:
               schema:
@@ -669,7 +713,7 @@ components:
       properties:
         accountNumber:
           type: string
-          format: ^01\d{6}$
+          pattern: ^01\d{6}$
           examples:
             - "01234567"
             - "01765432"
@@ -749,7 +793,7 @@ components:
       properties:
         id: 
           type: string
-          pattern: ^tan-[A-Za-z0-9]$
+          pattern: ^tan-[A-Za-z0-9]+$
           examples:
             - tan-123abc
         amount:
@@ -927,6 +971,34 @@ components:
                 type: string
               type:
                 type: string
+    LoginRequest:
+      type: object
+      required:
+        - email
+        - password
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+    LoginResponse:
+      type: object
+      required:
+        - success
+        - message
+        - data
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+        data:
+          type: object
+          properties:
+            token:
+              type: string
+              description: JWT token for authentication
   securitySchemes:
     bearerAuth:
       type: http

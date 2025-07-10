@@ -24,15 +24,13 @@ public class JwtAuthFilter extends OncePerRequestFilter {
   @Autowired private JwtService jwtService;
   @Autowired private UserService userService;
 
-  
   @Override
   protected boolean shouldNotFilter(HttpServletRequest request) {
       String path = request.getServletPath();
       String method = request.getMethod();
 
       return (path.equals("/v1/users") && method.equals("POST")) || 
-             (path.equals("/v1/login") && method.equals("POST")) || 
-              path.equals("/h2-console/**");
+              path.startsWith("/h2-console");
   }
 
   @Override

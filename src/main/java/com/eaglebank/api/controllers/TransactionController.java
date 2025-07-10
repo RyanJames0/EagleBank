@@ -1,10 +1,7 @@
 package com.eaglebank.api.controllers;
 
-import java.math.BigDecimal;
-import java.util.List;
+import java.util.Arrays;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -13,215 +10,136 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.eaglebank.api.dto.transaction.TransactionRequest;
+import com.eaglebank.api.dto.error.BadRequestErrorResponse;
+import com.eaglebank.api.dto.error.ErrorResponse;
+import com.eaglebank.api.dto.transaction.CreateTransactionRequest;
+import com.eaglebank.api.dto.transaction.ListTransactionsResponse;
 import com.eaglebank.api.dto.transaction.TransactionResponse;
-import com.eaglebank.api.model.ApiResponse;
 import com.eaglebank.api.service.transaction.TransactionService;
-import com.eaglebank.api.utils.InputValidation;
 
 import jakarta.validation.Valid;
 
 @RestController
-@RequestMapping("/v1/accounts")
 public class TransactionController {
-  private static final Logger logger = LoggerFactory.getLogger(TransactionController.class);
 
   @Autowired
   private TransactionService transactionService;
 
-  @PostMapping("/{accountId}/transactions")
-  public ResponseEntity<ApiResponse> createTransaction(
-      @PathVariable final Long accountId,
-      @Valid @RequestBody final TransactionRequest transactionRequest,
-      final Authentication authentication) {
-    
-    logger.info("Creating transaction for account: {} by user: {}", accountId, authentication.getName());
-    
+  @PostMapping("/v1/accounts/{accountNumber}/transactions")
+  public ResponseEntity<?> createTransaction(
+      @PathVariable String accountNumber,
+      @Valid @RequestBody CreateTransactionRequest request,
+      Authentication authentication) {
     try {
-      // Validate account ID
-      if (accountId == null || accountId <= 0) {
-        logger.warn("Invalid account ID provided: {}", accountId);
+      // Validate account number format
+      if (!accountNumber.matches("^01\\d{6}$")) {
+        BadRequestErrorResponse.ValidationError validationError =
+            new BadRequestErrorResponse.ValidationError("accountNumber", "Invalid account number format", "format");
         return ResponseEntity.badRequest()
-            .body(new ApiResponse(false, "Valid account ID is required", null));
+            .body(new BadRequestErrorResponse("Validation failed", Arrays.asList(validationError)));
       }
 
-      // Get authenticated user email
       String userEmail = authentication.getName();
-      if (InputValidation.isInvalidInput(userEmail)) {
-        logger.warn("Invalid user authentication for transaction creation");
-        return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-            .body(new ApiResponse(false, "User authentication required", null));
-      }
-
-      TransactionResponse response = transactionService.createTransaction(accountId, transactionRequest, userEmail);
+      TransactionResponse response = transactionService.createTransaction(accountNumber, request, userEmail);
+      return ResponseEntity.status(HttpStatus.CREATED).body(response);
       
-      logger.info("Successfully created transaction: {} for account: {} by user: {}",
-                  response.getId(), accountId, userEmail);
-
-      return ResponseEntity.status(HttpStatus.CREATED)
-          .body(new ApiResponse(true, "Transaction created successfully", response));
-
+    } catch (SecurityException e) {
+      return ResponseEntity.status(HttpStatus.FORBIDDEN)
+          .body(new ErrorResponse("The user is not allowed to access the transaction"));
     } catch (IllegalArgumentException e) {
-      logger.warn("Transaction creation failed for account: {} by user: {} - {}",
-                  accountId, authentication.getName(), e.getMessage());
-      
       String message = e.getMessage();
-      
       if (message.contains("Account not found")) {
         return ResponseEntity.status(HttpStatus.NOT_FOUND)
-            .body(new ApiResponse(false, message, null));
-      } else if (message.contains("Account does not belong to authenticated user")) {
-        return ResponseEntity.status(HttpStatus.FORBIDDEN)
-            .body(new ApiResponse(false, message, null));
+            .body(new ErrorResponse("Bank account was not found"));
       } else if (message.contains("Insufficient funds")) {
-        return ResponseEntity.status(HttpStatus.CONFLICT)
-            .body(new ApiResponse(false, message, null));
+        return ResponseEntity.status(HttpStatus.UNPROCESSABLE_ENTITY)
+            .body(new ErrorResponse("Insufficient funds to process transaction"));
       } else {
+        BadRequestErrorResponse.ValidationError validationError =
+            new BadRequestErrorResponse.ValidationError("general", message, "validation");
         return ResponseEntity.badRequest()
-            .body(new ApiResponse(false, message, null));
+            .body(new BadRequestErrorResponse("Validation failed", Arrays.asList(validationError)));
       }
-    } catch (SecurityException e) {
-      logger.warn("Security violation during transaction creation for account: {} by user: {} - {}",
-                  accountId, authentication.getName(), e.getMessage());
-      return ResponseEntity.status(HttpStatus.FORBIDDEN)
-          .body(new ApiResponse(false, e.getMessage(), null));
     } catch (Exception e) {
-      logger.error("Unexpected error creating transaction for account: {} by user: {}",
-                   accountId, authentication.getName(), e);
       return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-          .body(new ApiResponse(false, "An unexpected error occurred", null));
+          .body(new ErrorResponse("An unexpected error occurred"));
     }
   }
 
-  @GetMapping("/{accountId}/transactions")
-  public ResponseEntity<ApiResponse> getTransactions(
-      @PathVariable final Long accountId,
-      final Authentication authentication) {
-    
-    logger.debug("Retrieving transactions for account: {} by user: {}", accountId, authentication.getName());
-    
+  @GetMapping("/v1/accounts/{accountNumber}/transactions")
+  public ResponseEntity<?> getTransactions(
+      @PathVariable String accountNumber,
+      Authentication authentication) {
     try {
-      // Validate account ID
-      if (accountId == null || accountId <= 0) {
-        logger.warn("Invalid account ID provided: {}", accountId);
+      // Validate account number format
+      if (!accountNumber.matches("^01\\d{6}$")) {
+        BadRequestErrorResponse.ValidationError validationError =
+            new BadRequestErrorResponse.ValidationError("accountNumber", "Invalid account number format", "format");
         return ResponseEntity.badRequest()
-            .body(new ApiResponse(false, "Valid account ID is required", null));
+            .body(new BadRequestErrorResponse("Validation failed", Arrays.asList(validationError)));
       }
 
-      // Get authenticated user email
       String userEmail = authentication.getName();
-      if (InputValidation.isInvalidInput(userEmail)) {
-        logger.warn("Invalid user authentication for transaction retrieval");
-        return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-            .body(new ApiResponse(false, "User authentication required", null));
-      }
-
-      List<TransactionResponse> transactions = transactionService.getTransactionsForAccount(accountId, userEmail);
+      ListTransactionsResponse response = transactionService.getTransactionsForAccount(accountNumber, userEmail);
+      return ResponseEntity.ok(response);
       
-      logger.debug("Successfully retrieved {} transactions for account: {} by user: {}",
-                   transactions.size(), accountId, userEmail);
-
-      return ResponseEntity.ok()
-          .body(new ApiResponse(true, "Transactions retrieved successfully", transactions));
-
-    } catch (IllegalArgumentException e) {
-      logger.warn("Failed to retrieve transactions for account: {} by user: {} - {}",
-                  accountId, authentication.getName(), e.getMessage());
-      
-      String message = e.getMessage();
-      
-      if (message.contains("Account not found")) {
-        return ResponseEntity.status(HttpStatus.NOT_FOUND)
-            .body(new ApiResponse(false, message, null));
-      } else if (message.contains("Account does not belong to authenticated user")) {
-        return ResponseEntity.status(HttpStatus.FORBIDDEN)
-            .body(new ApiResponse(false, message, null));
-      } else {
-        return ResponseEntity.badRequest()
-            .body(new ApiResponse(false, message, null));
-      }
     } catch (SecurityException e) {
-      logger.warn("Security violation during transaction retrieval for account: {} by user: {} - {}",
-                  accountId, authentication.getName(), e.getMessage());
       return ResponseEntity.status(HttpStatus.FORBIDDEN)
-          .body(new ApiResponse(false, e.getMessage(), null));
+          .body(new ErrorResponse("The user is not allowed to access the transactions"));
+    } catch (IllegalArgumentException e) {
+      return ResponseEntity.status(HttpStatus.NOT_FOUND)
+          .body(new ErrorResponse("Bank account was not found"));
     } catch (Exception e) {
-      logger.error("Unexpected error retrieving transactions for account: {} by user: {}",
-                   accountId, authentication.getName(), e);
       return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-          .body(new ApiResponse(false, "An unexpected error occurred", null));
+          .body(new ErrorResponse("An unexpected error occurred"));
     }
   }
 
-  @GetMapping("/{accountId}/transactions/{transactionId}")
-  public ResponseEntity<ApiResponse> getTransaction(
-      @PathVariable final Long accountId,
-      @PathVariable final Long transactionId,
-      final Authentication authentication) {
-    
-    logger.debug("Retrieving transaction: {} for account: {} by user: {}",
-                 transactionId, accountId, authentication.getName());
-    
+  @GetMapping("/v1/accounts/{accountNumber}/transactions/{transactionId}")
+  public ResponseEntity<?> getTransaction(
+      @PathVariable String accountNumber,
+      @PathVariable String transactionId,
+      Authentication authentication) {
     try {
-      // Validate account ID
-      if (accountId == null || accountId <= 0) {
-        logger.warn("Invalid account ID provided: {}", accountId);
+      // Validate account number format
+      if (!accountNumber.matches("^01\\d{6}$")) {
+        BadRequestErrorResponse.ValidationError validationError =
+            new BadRequestErrorResponse.ValidationError("accountNumber", "Invalid account number format", "format");
         return ResponseEntity.badRequest()
-            .body(new ApiResponse(false, "Valid account ID is required", null));
+            .body(new BadRequestErrorResponse("Validation failed", Arrays.asList(validationError)));
       }
 
-      // Validate transaction ID
-      if (transactionId == null || transactionId <= 0) {
-        logger.warn("Invalid transaction ID provided: {}", transactionId);
+      // Validate transaction ID format
+      if (!transactionId.matches("^tan-[A-Za-z0-9]+$")) {
+        BadRequestErrorResponse.ValidationError validationError =
+            new BadRequestErrorResponse.ValidationError("transactionId", "Invalid transaction ID format", "format");
         return ResponseEntity.badRequest()
-            .body(new ApiResponse(false, "Valid transaction ID is required", null));
+            .body(new BadRequestErrorResponse("Validation failed", Arrays.asList(validationError)));
       }
 
-      // Get authenticated user email
       String userEmail = authentication.getName();
-      if (InputValidation.isInvalidInput(userEmail)) {
-        logger.warn("Invalid user authentication for transaction retrieval");
-        return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-            .body(new ApiResponse(false, "User authentication required", null));
-      }
-
-      TransactionResponse transaction = transactionService.getTransactionById(accountId, transactionId, userEmail);
+      TransactionResponse response = transactionService.getTransactionById(accountNumber, transactionId, userEmail);
+      return ResponseEntity.ok(response);
       
-      logger.debug("Successfully retrieved transaction: {} for account: {} by user: {}",
-                   transactionId, accountId, userEmail);
-
-      return ResponseEntity.ok()
-          .body(new ApiResponse(true, "Transaction retrieved successfully", transaction));
-
+    } catch (SecurityException e) {
+      return ResponseEntity.status(HttpStatus.FORBIDDEN)
+          .body(new ErrorResponse("The user is not allowed to access the transaction"));
     } catch (IllegalArgumentException e) {
-      logger.warn("Failed to retrieve transaction: {} for account: {} by user: {} - {}",
-                  transactionId, accountId, authentication.getName(), e.getMessage());
-      
       String message = e.getMessage();
-      
       if (message.contains("Account not found") || message.contains("Transaction not found")) {
         return ResponseEntity.status(HttpStatus.NOT_FOUND)
-            .body(new ApiResponse(false, message, null));
-      } else if (message.contains("Account does not belong to authenticated user")) {
-        return ResponseEntity.status(HttpStatus.FORBIDDEN)
-            .body(new ApiResponse(false, message, null));
+            .body(new ErrorResponse(message));
       } else {
+        BadRequestErrorResponse.ValidationError validationError =
+            new BadRequestErrorResponse.ValidationError("general", message, "validation");
         return ResponseEntity.badRequest()
-            .body(new ApiResponse(false, message, null));
+            .body(new BadRequestErrorResponse("Validation failed", Arrays.asList(validationError)));
       }
-    } catch (SecurityException e) {
-      logger.warn("Security violation during transaction retrieval: {} for account: {} by user: {} - {}",
-                  transactionId, accountId, authentication.getName(), e.getMessage());
-      return ResponseEntity.status(HttpStatus.FORBIDDEN)
-          .body(new ApiResponse(false, e.getMessage(), null));
     } catch (Exception e) {
-      logger.error("Unexpected error retrieving transaction: {} for account: {} by user: {}",
-                   transactionId, accountId, authentication.getName(), e);
       return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-          .body(new ApiResponse(false, "An unexpected error occurred", null));
+          .body(new ErrorResponse("An unexpected error occurred"));
     }
   }
 }

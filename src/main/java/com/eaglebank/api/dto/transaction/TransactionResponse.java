@@ -3,62 +3,98 @@ package com.eaglebank.api.dto.transaction;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
+import com.eaglebank.api.model.transaction.Transaction;
 import com.eaglebank.api.model.transaction.TransactionType;
+import com.fasterxml.jackson.annotation.JsonFormat;
 
 public class TransactionResponse {
 
-  private Long id;
-  private TransactionType type;
+  private String id;
   private BigDecimal amount;
-  private LocalDateTime timestamp;
-  private Long accountId;
-  private BigDecimal newBalance;
+  private String currency;
+  private TransactionType type;
+  private String reference;
+  private String userId;
+  @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'")
+  private LocalDateTime createdTimestamp;
 
-  public Long getId() {
+  public TransactionResponse() {
+  }
+
+  public TransactionResponse(Transaction transaction) {
+    this.id = transaction.getId();
+    this.amount = transaction.getAmount();
+    this.currency = transaction.getCurrency();
+    this.type = transaction.getType();
+    this.reference = transaction.getReference();
+    this.userId = transaction.getUserId();
+    this.createdTimestamp = transaction.getCreatedTimestamp();
+  }
+
+  public TransactionResponse(String id, BigDecimal amount, String currency, TransactionType type,
+                           String reference, String userId, LocalDateTime createdTimestamp) {
+    this.id = id;
+    this.amount = amount;
+    this.currency = currency;
+    this.type = type;
+    this.reference = reference;
+    this.userId = userId;
+    this.createdTimestamp = createdTimestamp;
+  }
+
+  public String getId() {
     return id;
   }
 
-  public void setId(final Long id) {
+  public void setId(String id) {
     this.id = id;
-  }
-
-  public TransactionType getType() {
-    return type;
-  }
-
-  public void setType(final TransactionType type) {
-    this.type = type;
   }
 
   public BigDecimal getAmount() {
     return amount;
   }
 
-  public void setAmount(final BigDecimal amount) {
+  public void setAmount(BigDecimal amount) {
     this.amount = amount;
   }
 
-  public LocalDateTime getTimestamp() {
-    return timestamp;
+  public String getCurrency() {
+    return currency;
   }
 
-  public void setTimestamp(final LocalDateTime timestamp) {
-    this.timestamp = timestamp;
+  public void setCurrency(String currency) {
+    this.currency = currency;
   }
 
-  public Long getAccountId() {
-    return accountId;
+  public TransactionType getType() {
+    return type;
   }
 
-  public void setAccountId(final Long accountId) {
-    this.accountId = accountId;
+  public void setType(TransactionType type) {
+    this.type = type;
   }
 
-  public BigDecimal getNewBalance() {
-    return newBalance;
+  public String getReference() {
+    return reference;
   }
 
-  public void setNewBalance(final BigDecimal newBalance) {
-    this.newBalance = newBalance;
+  public void setReference(String reference) {
+    this.reference = reference;
+  }
+
+  public String getUserId() {
+    return userId;
+  }
+
+  public void setUserId(String userId) {
+    this.userId = userId;
+  }
+
+  public LocalDateTime getCreatedTimestamp() {
+    return createdTimestamp;
+  }
+
+  public void setCreatedTimestamp(LocalDateTime createdTimestamp) {
+    this.createdTimestamp = createdTimestamp;
   }
 }
