@@ -1,6 +1,8 @@
 package com.eaglebank.api.model.account;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -15,6 +17,8 @@ import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OneToMany;
+import jakarta.persistence.PrePersist;
+import jakarta.persistence.PreUpdate;
 
 import com.eaglebank.api.model.transaction.Transaction;
 import com.eaglebank.api.model.user.User;
@@ -36,9 +40,17 @@ public class BankAccount {
   // 16 digit primary account number 
   // and pin data
 
+  @Column(unique = true)
   private String accountNumber;
   private String sortCode;
   private BigDecimal balance;
+  private LocalDate expiryDate;
+  
+  @Column(name = "created_at")
+  private LocalDateTime createdAt;
+  
+  @Column(name = "updated_at")
+  private LocalDateTime updatedAt;
   
   @OneToMany(mappedBy = "sourceAccount")
   private List<Transaction> transactions = new ArrayList<>();
@@ -95,7 +107,42 @@ public class BankAccount {
     return accountType;
   }
 
-  public void setAccountType(BankAccountType string) {
-    this.accountType = string;
+  public void setAccountType(BankAccountType accountType) {
+    this.accountType = accountType;
+  }
+
+  public LocalDate getExpiryDate() {
+    return expiryDate;
+  }
+
+  public void setExpiryDate(LocalDate expiryDate) {
+    this.expiryDate = expiryDate;
+  }
+
+  public LocalDateTime getCreatedAt() {
+    return createdAt;
+  }
+
+  public void setCreatedAt(LocalDateTime createdAt) {
+    this.createdAt = createdAt;
+  }
+
+  public LocalDateTime getUpdatedAt() {
+    return updatedAt;
+  }
+
+  public void setUpdatedAt(LocalDateTime updatedAt) {
+    this.updatedAt = updatedAt;
+  }
+
+  @PrePersist
+  protected void onCreate() {
+    createdAt = LocalDateTime.now();
+    updatedAt = LocalDateTime.now();
+  }
+
+  @PreUpdate
+  protected void onUpdate() {
+    updatedAt = LocalDateTime.now();
   }
 }

@@ -1,6 +1,7 @@
 package com.eaglebank.api.service.account;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -27,23 +28,43 @@ public class BankAccountServiceImpl implements BankAccountService {
   @Override
   public BankAccountResponse createBankAccount(BankAccountRequest accountRequest) {
     BankAccount bankAccount = new BankAccount();
-    // Set some hardcoded values for demonstration purposes
-    //
-    bankAccount.setAccountNumber("123456789");
+    
+    // Generate sequential account number
+    String accountNumber = generateSequentialAccountNumber();
+    bankAccount.setAccountNumber(accountNumber);
     bankAccount.setAccountType(accountRequest.getAccountType());
     bankAccount.setBalance(BigDecimal.ZERO);
-    bankAccount.setSortCode("00-00-00");
+    bankAccount.setSortCode("40-47-84"); // Eagle Bank sort code
+    
+    // Set expiry date (5 years from now for debit cards)
+    bankAccount.setExpiryDate(LocalDate.now().plusYears(5));
 
     try {
-      User user = userService.getUserByEmail(
-        accountRequest.getEmail());
+      User user = userService.getUserByEmail(accountRequest.getEmail());
       bankAccount.setUser(user);
       bankAccountRepository.save(bankAccount);
       return new BankAccountResponse(bankAccount);
     } catch (Exception e) {
       // Handle exception
-      return null; 
+      return null;
     }
+  }
+
+  private String generateSequentialAccountNumber() {
+    // Format: 20XXXXXX (starts with 20, then 6 sequential digits)
+    String maxAccountNumber = bankAccountRepository.findMaxAccountNumber();
+    
+    if (maxAccountNumber == null) {
+      // First account
+      return "20000001";
+    }
+    
+    // Extract the sequential part and increment
+    String sequentialPart = maxAccountNumber.substring(2); // Remove "20" prefix
+    long nextNumber = Long.parseLong(sequentialPart) + 1;
+    
+    // Format with leading zeros to maintain 6 digits
+    return String.format("20%06d", nextNumber);
   }
 
   @Override
