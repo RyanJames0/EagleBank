@@ -65,8 +65,20 @@ public class TransactionController {
           .body(new ApiResponse(true, "Transaction created successfully", response));
 
     } catch (IllegalArgumentException e) {
-      return ResponseEntity.badRequest()
-          .body(new ApiResponse(false, e.getMessage(), null));
+      // Handle different types of IllegalArgumentException with appropriate status codes
+      String message = e.getMessage();
+      
+      if (message.contains("Account not found")) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND)
+            .body(new ApiResponse(false, message, null));
+      } else if (message.contains("Account does not belong to authenticated user")) {
+        return ResponseEntity.status(HttpStatus.FORBIDDEN)
+            .body(new ApiResponse(false, message, null));
+      } else {
+        // Other validation errors (insufficient funds, invalid data, etc.)
+        return ResponseEntity.badRequest()
+            .body(new ApiResponse(false, message, null));
+      }
     } catch (Exception e) {
       return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
           .body(new ApiResponse(false, "An unexpected error occurred", null));
