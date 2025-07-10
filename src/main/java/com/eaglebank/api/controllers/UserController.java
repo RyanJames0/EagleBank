@@ -99,7 +99,7 @@ public class UserController {
         "User ID should be a positive number");
     }
 
-    if (InputValidation.InvalidInput(user.getName())) {
+    if (InputValidation.isInvalidInput(user.getName())) {
       return createErrorResponse(
         HttpStatus.BAD_REQUEST, 
         "Name is required");

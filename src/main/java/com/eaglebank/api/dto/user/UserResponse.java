@@ -1,6 +1,6 @@
 package com.eaglebank.api.dto.user;
 
-import com.eaglebank.api.model.User;
+import com.eaglebank.api.model.user.User;
 
 public class UserResponse {
     private Long id;

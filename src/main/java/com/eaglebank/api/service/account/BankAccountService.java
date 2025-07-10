@@ -1,0 +1,33 @@
+package com.eaglebank.api.service.account;
+
+import com.eaglebank.api.dto.account.BankAccountRequest;
+import com.eaglebank.api.dto.account.BankAccountResponse;
+
+public interface BankAccountService {
+
+    /**
+     * Creates a new bank account.
+     *
+     * @param accountRequest the request containing account details
+     * @return the created bank account
+     */
+    BankAccountResponse createBankAccount(BankAccountRequest accountRequest);
+
+    /**
+     * Retrieves a bank account by its ID.
+     *
+     * @param accountId the ID of the bank account
+     * @return the bank account details
+     */
+    BankAccountResponse getBankAccountById(String accountId);
+
+    /**
+     * Updates an existing bank account.
+     *
+     * @param accountId the ID of the bank account to update
+     * @param accountRequest the request containing updated account details
+     * @return the updated bank account
+     */
+    BankAccountResponse updateBankAccount(String accountId, BankAccountRequest accountRequest);
+}
+
