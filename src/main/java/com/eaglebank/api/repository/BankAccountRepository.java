@@ -1,9 +1,12 @@
 package com.eaglebank.api.repository;
 
-import com.eaglebank.api.model.account.BankAccount;
+import java.util.List;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 
+import com.eaglebank.api.model.account.BankAccount;
+
 public interface BankAccountRepository extends JpaRepository<BankAccount, Long> {
 
+  List<BankAccount> findByUserEmail(String email);
 }

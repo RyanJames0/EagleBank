@@ -1,5 +1,7 @@
 package com.eaglebank.api.controllers;
 
+import java.util.List;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -54,6 +56,27 @@ public class BankAccountController {
     } catch (IllegalArgumentException e) {
       return ResponseEntity.badRequest()
           .body(new ApiResponse(false, e.getMessage(), null));
+    } catch (Exception e) {
+      return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+          .body(new ApiResponse(false, "An unexpected error occurred", null));
+    }
+  }
+
+  @GetMapping
+  public ResponseEntity<ApiResponse> getAllAccounts(final Authentication authentication) {
+    try {
+      // Get authenticated user email
+      String userEmail = authentication.getName();
+      if (InputValidation.isInvalidInput(userEmail)) {
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+            .body(new ApiResponse(false, "User authentication required", null));
+      }
+
+      List<BankAccountResponse> accounts = bankAccountService.getBankAccountsForUser(userEmail);
+
+      return ResponseEntity.ok()
+          .body(new ApiResponse(true, "Bank accounts retrieved successfully", accounts));
+
     } catch (Exception e) {
       return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
           .body(new ApiResponse(false, "An unexpected error occurred", null));

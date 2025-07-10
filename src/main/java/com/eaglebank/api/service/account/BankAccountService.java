@@ -38,5 +38,13 @@ public interface BankAccountService {
      * @return the bank account details if it belongs to the user
      */
     BankAccountResponse getBankAccountByIdForUser(String accountId, String userEmail);
+
+    /**
+     * Retrieves all bank accounts for a specific user.
+     *
+     * @param userEmail the email of the authenticated user
+     * @return list of bank accounts belonging to the user
+     */
+    java.util.List<BankAccountResponse> getBankAccountsForUser(String userEmail);
 }
 

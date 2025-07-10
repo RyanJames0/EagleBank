@@ -1,6 +1,8 @@
 package com.eaglebank.api.service.account;
 
 import java.math.BigDecimal;
+import java.util.List;
+import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.Authentication;
@@ -76,6 +78,15 @@ public class BankAccountServiceImpl implements BankAccountService {
     } catch (NumberFormatException e) {
       throw new IllegalArgumentException("Invalid account ID format");
     }
+  }
+
+  @Override
+  public List<BankAccountResponse> getBankAccountsForUser(String userEmail) {
+    List<BankAccount> bankAccounts = bankAccountRepository.findByUserEmail(userEmail);
+    
+    return bankAccounts.stream()
+        .map(BankAccountResponse::new)
+        .collect(Collectors.toList());
   }
 
   @Override
