@@ -3,15 +3,15 @@ package com.eaglebank.api.dto.account;
 import com.eaglebank.api.model.account.BankAccountType;
 
 public class BankAccountRequest {
-  private String userEmail; 
+  private String email; 
   private BankAccountType accountType; 
 
-  public String getUserEmail() {
-    return userEmail;
+  public String getEmail() {
+    return email;
   }
 
-  public void setUserId(String userId) {
-    this.userEmail = userId;
+  public void setEmail(String email) {
+    this.email = email;
   }
 
   public BankAccountType getAccountType() {

@@ -5,6 +5,7 @@ import java.math.BigDecimal;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.stereotype.Service;
 
 import com.eaglebank.api.dto.account.BankAccountRequest;
 import com.eaglebank.api.dto.account.BankAccountResponse;
@@ -13,6 +14,7 @@ import com.eaglebank.api.model.user.User;
 import com.eaglebank.api.repository.BankAccountRepository;
 import com.eaglebank.api.service.user.UserService;
 
+@Service
 public class BankAccountServiceImpl implements BankAccountService {
   @Autowired private BankAccountRepository bankAccountRepository;
   @Autowired private UserService userService;
@@ -29,7 +31,7 @@ public class BankAccountServiceImpl implements BankAccountService {
 
     try {
       User user = userService.getUserByEmail(
-        accountRequest.getUserEmail());
+        accountRequest.getEmail());
       bankAccount.setUser(user);
       bankAccountRepository.save(bankAccount);
       return new BankAccountResponse(bankAccount);
