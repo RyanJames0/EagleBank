@@ -1,11 +1,13 @@
 package com.eaglebank.api.controllers;
 
 import java.math.BigDecimal;
+import java.util.List;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -76,6 +78,101 @@ public class TransactionController {
             .body(new ApiResponse(false, message, null));
       } else {
         // Other validation errors (insufficient funds, invalid data, etc.)
+        return ResponseEntity.badRequest()
+            .body(new ApiResponse(false, message, null));
+      }
+    } catch (Exception e) {
+      return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+          .body(new ApiResponse(false, "An unexpected error occurred", null));
+    }
+  }
+
+  @GetMapping("/{accountId}/transactions")
+  public ResponseEntity<ApiResponse> getTransactions(
+      @PathVariable final Long accountId,
+      final Authentication authentication) {
+    
+    try {
+      // Validate account ID
+      if (accountId == null || accountId <= 0) {
+        return ResponseEntity.badRequest()
+            .body(new ApiResponse(false, "Valid account ID is required", null));
+      }
+
+      // Get authenticated user email
+      String userEmail = authentication.getName();
+      if (InputValidation.isInvalidInput(userEmail)) {
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+            .body(new ApiResponse(false, "User authentication required", null));
+      }
+
+      List<TransactionResponse> transactions = transactionService.getTransactionsForAccount(accountId, userEmail);
+
+      return ResponseEntity.ok()
+          .body(new ApiResponse(true, "Transactions retrieved successfully", transactions));
+
+    } catch (IllegalArgumentException e) {
+      // Handle different types of IllegalArgumentException with appropriate status codes
+      String message = e.getMessage();
+      
+      if (message.contains("Account not found")) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND)
+            .body(new ApiResponse(false, message, null));
+      } else if (message.contains("Account does not belong to authenticated user")) {
+        return ResponseEntity.status(HttpStatus.FORBIDDEN)
+            .body(new ApiResponse(false, message, null));
+      } else {
+        return ResponseEntity.badRequest()
+            .body(new ApiResponse(false, message, null));
+      }
+    } catch (Exception e) {
+      return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+          .body(new ApiResponse(false, "An unexpected error occurred", null));
+    }
+  }
+
+  @GetMapping("/{accountId}/transactions/{transactionId}")
+  public ResponseEntity<ApiResponse> getTransaction(
+      @PathVariable final Long accountId,
+      @PathVariable final Long transactionId,
+      final Authentication authentication) {
+    
+    try {
+      // Validate account ID
+      if (accountId == null || accountId <= 0) {
+        return ResponseEntity.badRequest()
+            .body(new ApiResponse(false, "Valid account ID is required", null));
+      }
+
+      // Validate transaction ID
+      if (transactionId == null || transactionId <= 0) {
+        return ResponseEntity.badRequest()
+            .body(new ApiResponse(false, "Valid transaction ID is required", null));
+      }
+
+      // Get authenticated user email
+      String userEmail = authentication.getName();
+      if (InputValidation.isInvalidInput(userEmail)) {
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+            .body(new ApiResponse(false, "User authentication required", null));
+      }
+
+      TransactionResponse transaction = transactionService.getTransactionById(accountId, transactionId, userEmail);
+
+      return ResponseEntity.ok()
+          .body(new ApiResponse(true, "Transaction retrieved successfully", transaction));
+
+    } catch (IllegalArgumentException e) {
+      // Handle different types of IllegalArgumentException with appropriate status codes
+      String message = e.getMessage();
+      
+      if (message.contains("Account not found") || message.contains("Transaction not found")) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND)
+            .body(new ApiResponse(false, message, null));
+      } else if (message.contains("Account does not belong to authenticated user")) {
+        return ResponseEntity.status(HttpStatus.FORBIDDEN)
+            .body(new ApiResponse(false, message, null));
+      } else {
         return ResponseEntity.badRequest()
             .body(new ApiResponse(false, message, null));
       }

@@ -2,6 +2,8 @@ package com.eaglebank.api.service.transaction;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.List;
+import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -86,6 +88,88 @@ public class TransactionServiceImpl implements TransactionService {
     response.setAccountId(accountId);
     response.setNewBalance(newBalance);
 
+    return response;
+  }
+
+  @Override
+  public List<TransactionResponse> getTransactionsForAccount(final Long accountId, final String userEmail) {
+    // Find the account and verify ownership
+    BankAccount account = bankAccountRepository.findById(accountId)
+        .orElseThrow(() -> new IllegalArgumentException("Account not found"));
+
+    // Verify account belongs to the user
+    if (!account.getUserId().getEmail().equals(userEmail)) {
+      throw new IllegalArgumentException("Account does not belong to authenticated user");
+    }
+
+    // Get all transactions for this account (both as source and destination)
+    List<Transaction> sourceTransactions = transactionRepository.findBySourceAccountIdOrderByTimestampDesc(accountId);
+    List<Transaction> destinationTransactions = transactionRepository.findByDestinationAccountIdOrderByTimestampDesc(accountId);
+
+    // Combine and convert to response DTOs
+    List<TransactionResponse> allTransactions = sourceTransactions.stream()
+        .map(this::convertToResponse)
+        .collect(Collectors.toList());
+
+    allTransactions.addAll(destinationTransactions.stream()
+        .map(this::convertToResponse)
+        .collect(Collectors.toList()));
+
+    // Sort by timestamp descending (most recent first)
+    allTransactions.sort((t1, t2) -> t2.getTimestamp().compareTo(t1.getTimestamp()));
+
+    return allTransactions;
+  }
+
+  private TransactionResponse convertToResponse(final Transaction transaction) {
+    TransactionResponse response = new TransactionResponse();
+    response.setId(transaction.getId());
+    response.setType(transaction.getType());
+    response.setAmount(transaction.getAmount());
+    response.setTimestamp(transaction.getTimestamp());
+    
+    // Set account ID based on transaction type
+    if (transaction.getSourceAccount() != null) {
+      response.setAccountId(transaction.getSourceAccount().getId());
+    } else if (transaction.getDestinationAccount() != null) {
+      response.setAccountId(transaction.getDestinationAccount().getId());
+    }
+    
+    return response;
+  }
+
+  @Override
+  public TransactionResponse getTransactionById(final Long accountId, final Long transactionId, final String userEmail) {
+    // First, verify the account exists and belongs to the user
+    BankAccount account = bankAccountRepository.findById(accountId)
+        .orElseThrow(() -> new IllegalArgumentException("Account not found"));
+
+    // Verify account belongs to the user
+    if (!account.getUserId().getEmail().equals(userEmail)) {
+      throw new IllegalArgumentException("Account does not belong to authenticated user");
+    }
+
+    // Find the transaction
+    Transaction transaction = transactionRepository.findById(transactionId)
+        .orElseThrow(() -> new IllegalArgumentException("Transaction not found"));
+
+    // Verify the transaction is associated with the specified account
+    boolean isAssociatedWithAccount = false;
+    
+    if (transaction.getSourceAccount() != null && transaction.getSourceAccount().getId() == accountId) {
+      isAssociatedWithAccount = true;
+    } else if (transaction.getDestinationAccount() != null && transaction.getDestinationAccount().getId() == accountId) {
+      isAssociatedWithAccount = true;
+    }
+
+    if (!isAssociatedWithAccount) {
+      throw new IllegalArgumentException("Transaction not found");
+    }
+
+    // Convert to response DTO
+    TransactionResponse response = convertToResponse(transaction);
+    response.setAccountId(accountId);
+    
     return response;
   }
 }
