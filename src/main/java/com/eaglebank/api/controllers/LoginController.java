@@ -34,11 +34,23 @@ public class LoginController {
             .body(new ApiResponse(false, "Email is required", null));
       }
 
+      if (InputValidation.isInvalidInput(loginRequest.getPassword())) {
+        return ResponseEntity.badRequest()
+            .body(new ApiResponse(false, "Password is required", null));
+      }
+
       String email = loginRequest.getEmail();
+      String password = loginRequest.getPassword();
 
       User user = userService.getUserByEmail(email);
 
       if (user == null) {
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+            .body(new ApiResponse(false, "Invalid credentials", null));
+      }
+
+      // Validate password using BCrypt
+      if (user.getPasswordHash() == null || !encoder.matches(password, user.getPasswordHash())) {
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
             .body(new ApiResponse(false, "Invalid credentials", null));
       }

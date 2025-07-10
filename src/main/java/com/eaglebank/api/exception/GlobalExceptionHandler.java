@@ -5,6 +5,7 @@ import java.util.List;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -12,6 +13,7 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 import com.eaglebank.api.dto.error.BadRequestErrorResponse;
 import com.eaglebank.api.dto.error.ErrorResponse;
+import com.fasterxml.jackson.databind.exc.InvalidFormatException;
 
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.ConstraintViolationException;
@@ -59,6 +61,34 @@ public class GlobalExceptionHandler {
     return ResponseEntity.badRequest().body(response);
   }
 
+  @ExceptionHandler(HttpMessageNotReadableException.class)
+  public ResponseEntity<BadRequestErrorResponse> handleHttpMessageNotReadableException(HttpMessageNotReadableException ex) {
+    List<BadRequestErrorResponse.ValidationError> validationErrors = new ArrayList<>();
+    
+    // Check if it's an enum validation error
+    if (ex.getCause() instanceof InvalidFormatException) {
+      InvalidFormatException invalidFormatEx = (InvalidFormatException) ex.getCause();
+      
+      // Check if the target type is an enum
+      if (invalidFormatEx.getTargetType() != null && invalidFormatEx.getTargetType().isEnum()) {
+        String fieldName = getFieldNameFromPath(invalidFormatEx.getPath());
+        String invalidValue = invalidFormatEx.getValue().toString();
+        String enumValues = getEnumValues(invalidFormatEx.getTargetType());
+        
+        String message = String.format("Invalid value '%s'. Allowed values are: %s", invalidValue, enumValues);
+        validationErrors.add(new BadRequestErrorResponse.ValidationError(fieldName, message, "enum"));
+        
+        BadRequestErrorResponse response = new BadRequestErrorResponse("Validation failed", validationErrors);
+        return ResponseEntity.badRequest().body(response);
+      }
+    }
+    
+    // For other JSON parsing errors, return a generic validation error
+    validationErrors.add(new BadRequestErrorResponse.ValidationError("request", "Invalid request format", "format"));
+    BadRequestErrorResponse response = new BadRequestErrorResponse("Validation failed", validationErrors);
+    return ResponseEntity.badRequest().body(response);
+  }
+
   @ExceptionHandler(IllegalArgumentException.class)
   public ResponseEntity<ErrorResponse> handleIllegalArgumentException(IllegalArgumentException ex) {
     return ResponseEntity.badRequest().body(new ErrorResponse(ex.getMessage()));
@@ -97,5 +127,31 @@ public class GlobalExceptionHandler {
       default:
         return "validation";
     }
+  }
+
+  private String getFieldNameFromPath(List<com.fasterxml.jackson.databind.JsonMappingException.Reference> path) {
+    if (path == null || path.isEmpty()) {
+      return "unknown";
+    }
+    
+    // Get the last field name from the path
+    com.fasterxml.jackson.databind.JsonMappingException.Reference lastRef = path.get(path.size() - 1);
+    return lastRef.getFieldName() != null ? lastRef.getFieldName() : "unknown";
+  }
+
+  private String getEnumValues(Class<?> enumClass) {
+    if (!enumClass.isEnum()) {
+      return "";
+    }
+    
+    Object[] enumConstants = enumClass.getEnumConstants();
+    StringBuilder sb = new StringBuilder();
+    for (int i = 0; i < enumConstants.length; i++) {
+      if (i > 0) {
+        sb.append(", ");
+      }
+      sb.append(enumConstants[i].toString());
+    }
+    return sb.toString();
   }
 }

@@ -4,6 +4,7 @@ import java.util.Optional;
 import java.util.UUID;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import com.eaglebank.api.dto.user.CreateUserRequest;
@@ -18,6 +19,7 @@ public class UserServiceImpl implements UserService {
 
   @Autowired private UserRepository userRepository;
   @Autowired private BankAccountRepository bankAccountRepository;
+  @Autowired private BCryptPasswordEncoder passwordEncoder;
 
   @Override
   public UserResponse createUser(CreateUserRequest request) {
@@ -30,6 +32,10 @@ public class UserServiceImpl implements UserService {
     user.setAddress(request.getAddress());
     user.setPhoneNumber(request.getPhoneNumber());
     user.setEmail(request.getEmail());
+    
+    // Hash the password before saving
+    String hashedPassword = passwordEncoder.encode(request.getPassword());
+    user.setPasswordHash(hashedPassword);
     
     User savedUser = userRepository.save(user);
     return new UserResponse(savedUser);
