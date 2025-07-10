@@ -1,6 +1,7 @@
 package com.eaglebank.api.model.account;
 
 import java.math.BigDecimal;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
@@ -40,7 +41,7 @@ public class BankAccount {
   private BigDecimal balance;
   
   @OneToMany(mappedBy = "sourceAccount")
-  private List<Transaction> transactions;
+  private List<Transaction> transactions = new ArrayList<>();
 
   public long getId() {
     return id;
