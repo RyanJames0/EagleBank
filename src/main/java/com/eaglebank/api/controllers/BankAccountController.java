@@ -6,6 +6,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -156,6 +157,50 @@ public class BankAccountController {
     } catch (IllegalArgumentException e) {
       return ResponseEntity.badRequest()
           .body(new ApiResponse(false, e.getMessage(), null));
+    } catch (Exception e) {
+      return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+          .body(new ApiResponse(false, "An unexpected error occurred", null));
+    }
+  }
+
+  @DeleteMapping("/{accountId}")
+  public ResponseEntity<ApiResponse> deleteAccount(
+      @PathVariable final String accountId,
+      final Authentication authentication) {
+    try {
+      if (accountId == null || accountId.trim().isEmpty()) {
+        return ResponseEntity.badRequest()
+            .body(new ApiResponse(false, "Account ID is required", null));
+      }
+
+      // Get authenticated user email
+      String userEmail = authentication.getName();
+      if (InputValidation.isInvalidInput(userEmail)) {
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+            .body(new ApiResponse(false, "User authentication required", null));
+      }
+
+      bankAccountService.deleteBankAccountForUser(accountId, userEmail);
+
+      return ResponseEntity.ok()
+          .body(new ApiResponse(true, "Bank account deleted successfully", null));
+
+    } catch (IllegalArgumentException e) {
+      String message = e.getMessage();
+      
+      if (message.contains("Account not found")) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND)
+            .body(new ApiResponse(false, message, null));
+      } else if (message.contains("Account does not belong to authenticated user")) {
+        return ResponseEntity.status(HttpStatus.FORBIDDEN)
+            .body(new ApiResponse(false, message, null));
+      } else if (message.contains("Cannot delete account with existing transactions")) {
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+            .body(new ApiResponse(false, message, null));
+      } else {
+        return ResponseEntity.badRequest()
+            .body(new ApiResponse(false, message, null));
+      }
     } catch (Exception e) {
       return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
           .body(new ApiResponse(false, "An unexpected error occurred", null));

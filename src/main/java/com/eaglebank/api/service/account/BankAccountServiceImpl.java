@@ -8,17 +8,20 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import com.eaglebank.api.dto.account.BankAccountRequest;
 import com.eaglebank.api.dto.account.BankAccountResponse;
 import com.eaglebank.api.model.account.BankAccount;
 import com.eaglebank.api.model.user.User;
 import com.eaglebank.api.repository.BankAccountRepository;
+import com.eaglebank.api.repository.TransactionRepository;
 import com.eaglebank.api.service.user.UserService;
 
 @Service
 public class BankAccountServiceImpl implements BankAccountService {
   @Autowired private BankAccountRepository bankAccountRepository;
+  @Autowired private TransactionRepository transactionRepository;
   @Autowired private UserService userService;
 
   @Override
@@ -114,6 +117,37 @@ public class BankAccountServiceImpl implements BankAccountService {
       
       bankAccount = bankAccountRepository.save(bankAccount);
       return new BankAccountResponse(bankAccount);
+      
+    } catch (NumberFormatException e) {
+      throw new IllegalArgumentException("Invalid account ID format");
+    }
+  }
+
+  @Override
+  @Transactional
+  public void deleteBankAccountForUser(String accountId, String userEmail) {
+    try {
+      Long id = Long.parseLong(accountId);
+      BankAccount bankAccount = bankAccountRepository.findById(id)
+          .orElseThrow(() -> new IllegalArgumentException("Account not found"));
+      
+      // Verify account belongs to the user
+      if (!bankAccount.getUserId().getEmail().equals(userEmail)) {
+        throw new IllegalArgumentException("Account does not belong to authenticated user");
+      }
+      
+      // Check if account has transactions
+      List<com.eaglebank.api.model.transaction.Transaction> sourceTransactions =
+          transactionRepository.findBySourceAccountIdOrderByTimestampDesc(id);
+      List<com.eaglebank.api.model.transaction.Transaction> destinationTransactions =
+          transactionRepository.findByDestinationAccountIdOrderByTimestampDesc(id);
+      
+      if (!sourceTransactions.isEmpty() || !destinationTransactions.isEmpty()) {
+        throw new IllegalArgumentException("Cannot delete account with existing transactions");
+      }
+      
+      // Delete the account
+      bankAccountRepository.delete(bankAccount);
       
     } catch (NumberFormatException e) {
       throw new IllegalArgumentException("Invalid account ID format");

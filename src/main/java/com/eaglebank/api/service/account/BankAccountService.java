@@ -47,5 +47,13 @@ public interface BankAccountService {
      * @return list of bank accounts belonging to the user
      */
     java.util.List<BankAccountResponse> getBankAccountsForUser(String userEmail);
+
+    /**
+     * Deletes a bank account for a specific user.
+     *
+     * @param accountId the ID of the bank account to delete
+     * @param userEmail the email of the authenticated user
+     */
+    void deleteBankAccountForUser(String accountId, String userEmail);
 }
 
