@@ -90,9 +90,34 @@ public class BankAccountServiceImpl implements BankAccountService {
   }
 
   @Override
-  public BankAccountResponse updateBankAccount(String accountId, BankAccountRequest accountRequest) {
-    // TODO Auto-generated method stub
-    return null;
+  public BankAccountResponse updateBankAccountForUser(String accountId, BankAccountRequest accountRequest, String userEmail) {
+    try {
+      Long id = Long.parseLong(accountId);
+      BankAccount bankAccount = bankAccountRepository.findById(id).orElse(null);
+      
+      if (bankAccount == null) {
+        return null;
+      }
+      
+      // Verify account belongs to the user
+      if (!bankAccount.getUserId().getEmail().equals(userEmail)) {
+        throw new IllegalArgumentException("Account does not belong to authenticated user");
+      }
+      
+      // Update account type if provided
+      if (accountRequest.getAccountType() != null) {
+        bankAccount.setAccountType(accountRequest.getAccountType());
+      }
+      
+      // Note: We don't update email as that would change ownership
+      // Balance should only be updated through transactions, not direct updates
+      
+      bankAccount = bankAccountRepository.save(bankAccount);
+      return new BankAccountResponse(bankAccount);
+      
+    } catch (NumberFormatException e) {
+      throw new IllegalArgumentException("Invalid account ID format");
+    }
   }
 
 }

@@ -22,13 +22,14 @@ public interface BankAccountService {
     BankAccountResponse getBankAccountById(String accountId);
 
     /**
-     * Updates an existing bank account.
+     * Updates an existing bank account for a specific user.
      *
      * @param accountId the ID of the bank account to update
      * @param accountRequest the request containing updated account details
+     * @param userEmail the email of the authenticated user
      * @return the updated bank account
      */
-    BankAccountResponse updateBankAccount(String accountId, BankAccountRequest accountRequest);
+    BankAccountResponse updateBankAccountForUser(String accountId, BankAccountRequest accountRequest, String userEmail);
 
     /**
      * Retrieves a bank account by its ID for a specific user.
