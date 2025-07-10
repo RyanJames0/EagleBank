@@ -10,10 +10,14 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.eaglebank.api.model.user.User;
-import com.eaglebank.api.service.user.UserService;
-import com.eaglebank.api.service.jwt.JwtService;
 import com.eaglebank.api.dto.login.LoginRequest;
+import com.eaglebank.api.model.ApiResponse;
+import com.eaglebank.api.model.user.User;
+import com.eaglebank.api.service.jwt.JwtService;
+import com.eaglebank.api.service.user.UserService;
+import com.eaglebank.api.utils.InputValidation;
+
+import jakarta.validation.Valid;
 
 @RestController
 public class LoginController {
@@ -22,21 +26,38 @@ public class LoginController {
   @Autowired private BCryptPasswordEncoder encoder;
 
   @PostMapping("/v1/login")
-  public ResponseEntity<?> login(@RequestBody LoginRequest loginRequest) {
-    System.out.println("Entered the login function");
+  public ResponseEntity<ApiResponse> login(@Valid @RequestBody final LoginRequest loginRequest) {
+    try {
+      // Validate input
+      if (InputValidation.isInvalidInput(loginRequest.getEmail())) {
+        return ResponseEntity.badRequest()
+            .body(new ApiResponse(false, "Email is required", null));
+      }
 
-    String email = loginRequest.getEmail();
-    String password = loginRequest.getPassword();
+      if (InputValidation.isInvalidInput(loginRequest.getPassword())) {
+        return ResponseEntity.badRequest()
+            .body(new ApiResponse(false, "Password is required", null));
+      }
 
-    User user = 
-        userService.getUserByEmail(email);
+      String email = loginRequest.getEmail();
+      String password = loginRequest.getPassword();
 
+      User user = userService.getUserByEmail(email);
 
-    if (user == null || !encoder.matches(password, user.getPasswordHash())) {
-        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Invalid credentials");
+      if (user == null || !encoder.matches(password, user.getPasswordHash())) {
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+            .body(new ApiResponse(false, "Invalid credentials", null));
+      }
+
+      String token = JwtService.generateToken(email);
+      Map<String, String> tokenData = Map.of("token", token);
+      
+      return ResponseEntity.ok()
+          .body(new ApiResponse(true, "Login successful", tokenData));
+
+    } catch (Exception e) {
+      return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+          .body(new ApiResponse(false, "An unexpected error occurred", null));
     }
-
-    String token = JwtService.generateToken(email);
-    return ResponseEntity.ok(Map.of("token", token));
-  } 
+  }
 }

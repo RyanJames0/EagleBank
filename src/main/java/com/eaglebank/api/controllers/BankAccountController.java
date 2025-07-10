@@ -3,6 +3,7 @@ package com.eaglebank.api.controllers;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -59,15 +60,24 @@ public class BankAccountController {
     }
   }
 
-  @GetMapping("/v1/{accountId}")
-  public ResponseEntity<ApiResponse> getAccount(@PathVariable final String accountId) {
+  @GetMapping("/{accountId}")
+  public ResponseEntity<ApiResponse> getAccount(
+      @PathVariable final String accountId,
+      final Authentication authentication) {
     try {
       if (accountId == null || accountId.trim().isEmpty()) {
         return ResponseEntity.badRequest()
             .body(new ApiResponse(false, "Account ID is required", null));
       }
 
-      BankAccountResponse response = bankAccountService.getBankAccountById(accountId);
+      // Get authenticated user email
+      String userEmail = authentication.getName();
+      if (InputValidation.isInvalidInput(userEmail)) {
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+            .body(new ApiResponse(false, "User authentication required", null));
+      }
+
+      BankAccountResponse response = bankAccountService.getBankAccountByIdForUser(accountId, userEmail);
       
       if (response == null) {
         return ResponseEntity.status(HttpStatus.NOT_FOUND)
@@ -86,7 +96,7 @@ public class BankAccountController {
     }
   }
 
-  @PutMapping("/v1/{accountId}")
+  @PutMapping("/{accountId}")
   public ResponseEntity<ApiResponse> updateAccount(
       @PathVariable final String accountId,
       @Valid @RequestBody final BankAccountRequest accountRequest) {

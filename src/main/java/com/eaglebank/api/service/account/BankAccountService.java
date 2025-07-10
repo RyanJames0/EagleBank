@@ -29,5 +29,14 @@ public interface BankAccountService {
      * @return the updated bank account
      */
     BankAccountResponse updateBankAccount(String accountId, BankAccountRequest accountRequest);
+
+    /**
+     * Retrieves a bank account by its ID for a specific user.
+     *
+     * @param accountId the ID of the bank account
+     * @param userEmail the email of the authenticated user
+     * @return the bank account details if it belongs to the user
+     */
+    BankAccountResponse getBankAccountByIdForUser(String accountId, String userEmail);
 }
 

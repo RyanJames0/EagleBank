@@ -1,5 +1,7 @@
 package com.eaglebank.api.controllers;
 
+import java.math.BigDecimal;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -45,7 +47,7 @@ public class TransactionController {
       }
 
       // Validate amount
-      if (transactionRequest.getAmount() == null || transactionRequest.getAmount().compareTo(java.math.BigDecimal.ZERO) <= 0) {
+      if (transactionRequest.getAmount() == null || transactionRequest.getAmount().compareTo(BigDecimal.ZERO) <= 0) {
         return ResponseEntity.badRequest()
             .body(new ApiResponse(false, "Amount must be greater than 0", null));
       }

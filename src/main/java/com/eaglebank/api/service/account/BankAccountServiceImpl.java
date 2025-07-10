@@ -43,8 +43,39 @@ public class BankAccountServiceImpl implements BankAccountService {
 
   @Override
   public BankAccountResponse getBankAccountById(String accountId) {
-    // TODO Auto-generated method stub
-    return null;
+    try {
+      Long id = Long.parseLong(accountId);
+      BankAccount bankAccount = bankAccountRepository.findById(id).orElse(null);
+      
+      if (bankAccount == null) {
+        return null;
+      }
+      
+      return new BankAccountResponse(bankAccount);
+    } catch (NumberFormatException e) {
+      throw new IllegalArgumentException("Invalid account ID format");
+    }
+  }
+
+  @Override
+  public BankAccountResponse getBankAccountByIdForUser(String accountId, String userEmail) {
+    try {
+      Long id = Long.parseLong(accountId);
+      BankAccount bankAccount = bankAccountRepository.findById(id).orElse(null);
+      
+      if (bankAccount == null) {
+        return null;
+      }
+      
+      // Verify account belongs to the user
+      if (!bankAccount.getUserId().getEmail().equals(userEmail)) {
+        throw new IllegalArgumentException("Account does not belong to authenticated user");
+      }
+      
+      return new BankAccountResponse(bankAccount);
+    } catch (NumberFormatException e) {
+      throw new IllegalArgumentException("Invalid account ID format");
+    }
   }
 
   @Override
