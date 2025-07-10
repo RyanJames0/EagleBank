@@ -7,6 +7,7 @@ import java.util.List;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
+import jakarta.persistence.Index;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
@@ -17,7 +18,10 @@ import jakarta.persistence.Table;
 import com.eaglebank.api.model.account.BankAccount;
 
 @Entity
-@Table(name = "users")
+@Table(name = "users", indexes = {
+    @Index(name = "idx_user_email", columnList = "email"),
+    @Index(name = "idx_user_created_at", columnList = "created_at")
+})
 public class User {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

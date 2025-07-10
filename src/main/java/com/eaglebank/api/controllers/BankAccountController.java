@@ -2,6 +2,8 @@ package com.eaglebank.api.controllers;
 
 import java.util.List;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -26,38 +28,42 @@ import jakarta.validation.Valid;
 @RestController
 @RequestMapping("/v1/accounts")
 public class BankAccountController {
+  private static final Logger logger = LoggerFactory.getLogger(BankAccountController.class);
 
   @Autowired
   private BankAccountService bankAccountService;
 
   @PostMapping
   public ResponseEntity<ApiResponse> createAccount(@Valid @RequestBody final BankAccountRequest accountRequest) {
+    logger.info("Creating bank account for user: {}", accountRequest.getEmail());
+    
     try {
-      // Validate input
-      if (InputValidation.isInvalidInput(accountRequest.getEmail())) {
-        return ResponseEntity.badRequest()
-            .body(new ApiResponse(false, "User email is required", null));
-      }
-
-      if (accountRequest.getAccountType() == null) {
-        return ResponseEntity.badRequest()
-            .body(new ApiResponse(false, "Account type is required", null));
-      }
-
       BankAccountResponse response = bankAccountService.createBankAccount(accountRequest);
       
-      if (response == null) {
-        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-            .body(new ApiResponse(false, "Failed to create bank account", null));
-      }
+      logger.info("Successfully created bank account: {} for user: {}",
+                  response.getAccountNumber(), accountRequest.getEmail());
 
       return ResponseEntity.status(HttpStatus.CREATED)
           .body(new ApiResponse(true, "Bank account created successfully", response));
 
     } catch (IllegalArgumentException e) {
+      logger.warn("Failed to create bank account for user: {} - {}",
+                  accountRequest.getEmail(), e.getMessage());
       return ResponseEntity.badRequest()
           .body(new ApiResponse(false, e.getMessage(), null));
+    } catch (IllegalStateException e) {
+      logger.error("Data conflict while creating bank account for user: {} - {}",
+                   accountRequest.getEmail(), e.getMessage());
+      return ResponseEntity.status(HttpStatus.CONFLICT)
+          .body(new ApiResponse(false, e.getMessage(), null));
+    } catch (SecurityException e) {
+      logger.warn("Security violation during account creation for user: {} - {}",
+                  accountRequest.getEmail(), e.getMessage());
+      return ResponseEntity.status(HttpStatus.FORBIDDEN)
+          .body(new ApiResponse(false, e.getMessage(), null));
     } catch (Exception e) {
+      logger.error("Unexpected error creating bank account for user: {}",
+                   accountRequest.getEmail(), e);
       return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
           .body(new ApiResponse(false, "An unexpected error occurred", null));
     }
@@ -65,20 +71,25 @@ public class BankAccountController {
 
   @GetMapping
   public ResponseEntity<ApiResponse> getAllAccounts(final Authentication authentication) {
+    String userEmail = authentication.getName();
+    logger.debug("Retrieving all bank accounts for user: {}", userEmail);
+    
     try {
-      // Get authenticated user email
-      String userEmail = authentication.getName();
       if (InputValidation.isInvalidInput(userEmail)) {
+        logger.warn("Invalid user authentication for account retrieval");
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
             .body(new ApiResponse(false, "User authentication required", null));
       }
 
       List<BankAccountResponse> accounts = bankAccountService.getBankAccountsForUser(userEmail);
+      
+      logger.debug("Successfully retrieved {} bank accounts for user: {}", accounts.size(), userEmail);
 
       return ResponseEntity.ok()
           .body(new ApiResponse(true, "Bank accounts retrieved successfully", accounts));
 
     } catch (Exception e) {
+      logger.error("Unexpected error retrieving bank accounts for user: {}", userEmail, e);
       return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
           .body(new ApiResponse(false, "An unexpected error occurred", null));
     }

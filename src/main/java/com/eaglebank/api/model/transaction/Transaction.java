@@ -8,10 +8,21 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.Index;
 import jakarta.persistence.ManyToOne;
+import jakarta.persistence.Table;
 
 import com.eaglebank.api.model.account.BankAccount;
+
 @Entity
+@Table(name = "transaction", indexes = {
+    @Index(name = "idx_transaction_source_account", columnList = "sourceAccount_id"),
+    @Index(name = "idx_transaction_destination_account", columnList = "destinationAccount_id"),
+    @Index(name = "idx_transaction_timestamp", columnList = "timestamp"),
+    @Index(name = "idx_transaction_type", columnList = "type"),
+    @Index(name = "idx_transaction_source_timestamp", columnList = "sourceAccount_id, timestamp"),
+    @Index(name = "idx_transaction_dest_timestamp", columnList = "destinationAccount_id, timestamp")
+})
 public class Transaction {
   @Id
   @GeneratedValue(strategy = GenerationType.IDENTITY)

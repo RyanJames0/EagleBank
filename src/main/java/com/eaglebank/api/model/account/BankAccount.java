@@ -14,16 +14,25 @@ import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.Index;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
+import jakarta.persistence.Table;
 
 import com.eaglebank.api.model.transaction.Transaction;
 import com.eaglebank.api.model.user.User;
+
 @Entity
-public class BankAccount { 
+@Table(name = "bank_account", indexes = {
+    @Index(name = "idx_bank_account_user_id", columnList = "user_id"),
+    @Index(name = "idx_bank_account_account_number", columnList = "accountNumber"),
+    @Index(name = "idx_bank_account_created_at", columnList = "created_at"),
+    @Index(name = "idx_bank_account_user_created", columnList = "user_id, created_at")
+})
+public class BankAccount {
   @Id
   @GeneratedValue(strategy = GenerationType.IDENTITY)
   private long id;
